@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/Eiryyy/ent-sample/ent/car"
+	"github.com/Eiryyy/ent-sample/ent/user"
 	"github.com/google/uuid"
 )
 
@@ -45,6 +46,25 @@ func (cc *CarCreate) SetNillableID(u *uuid.UUID) *CarCreate {
 		cc.SetID(*u)
 	}
 	return cc
+}
+
+// SetOwnerID sets the "owner" edge to the User entity by ID.
+func (cc *CarCreate) SetOwnerID(id uuid.UUID) *CarCreate {
+	cc.mutation.SetOwnerID(id)
+	return cc
+}
+
+// SetNillableOwnerID sets the "owner" edge to the User entity by ID if the given value is not nil.
+func (cc *CarCreate) SetNillableOwnerID(id *uuid.UUID) *CarCreate {
+	if id != nil {
+		cc = cc.SetOwnerID(*id)
+	}
+	return cc
+}
+
+// SetOwner sets the "owner" edge to the User entity.
+func (cc *CarCreate) SetOwner(u *User) *CarCreate {
+	return cc.SetOwnerID(u.ID)
 }
 
 // Mutation returns the CarMutation object of the builder.
@@ -138,6 +158,23 @@ func (cc *CarCreate) createSpec() (*Car, *sqlgraph.CreateSpec) {
 	if value, ok := cc.mutation.RegisteredAt(); ok {
 		_spec.SetField(car.FieldRegisteredAt, field.TypeTime, value)
 		_node.RegisteredAt = value
+	}
+	if nodes := cc.mutation.OwnerIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   car.OwnerTable,
+			Columns: []string{car.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.user_cars = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

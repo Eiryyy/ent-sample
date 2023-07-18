@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/Eiryyy/ent-sample/ent/car"
+	"github.com/Eiryyy/ent-sample/ent/user"
 	"github.com/google/uuid"
 )
 
@@ -22,8 +23,33 @@ type Car struct {
 	Model string `json:"model,omitempty"`
 	// RegisteredAt holds the value of the "registered_at" field.
 	RegisteredAt time.Time `json:"registered_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the CarQuery when eager-loading is set.
+	Edges        CarEdges `json:"edges"`
 	user_cars    *uuid.UUID
 	selectValues sql.SelectValues
+}
+
+// CarEdges holds the relations/edges for other nodes in the graph.
+type CarEdges struct {
+	// Owner holds the value of the owner edge.
+	Owner *User `json:"owner,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// OwnerOrErr returns the Owner value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e CarEdges) OwnerOrErr() (*User, error) {
+	if e.loadedTypes[0] {
+		if e.Owner == nil {
+			// Edge was loaded but was not found.
+			return nil, &NotFoundError{label: user.Label}
+		}
+		return e.Owner, nil
+	}
+	return nil, &NotLoadedError{edge: "owner"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -90,6 +116,11 @@ func (c *Car) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (c *Car) Value(name string) (ent.Value, error) {
 	return c.selectValues.Get(name)
+}
+
+// QueryOwner queries the "owner" edge of the Car entity.
+func (c *Car) QueryOwner() *UserQuery {
+	return NewCarClient(c.config).QueryOwner(c)
 }
 
 // Update returns a builder for updating this Car.

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Eiryyy/ent-sample/ent"
+	"github.com/Eiryyy/ent-sample/ent/car"
 	"github.com/Eiryyy/ent-sample/ent/user"
 
 	_ "github.com/lib/pq"
@@ -25,10 +26,18 @@ func main() {
 	if _, err = CreateUser(ctx, client); err != nil {
 		log.Fatal(err)
 	}
-	if _, err = QueryUser(ctx, client); err != nil {
+	_, err = QueryUser(ctx, client)
+	if err != nil {
 		log.Fatal(err)
 	}
-	if _, err = CreateCars(ctx, client); err != nil {
+	a8m, err := CreateCars(ctx, client)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err = QueryCars(ctx, a8m); err != nil {
+		log.Fatal(err)
+	}
+	if err = QueryCarUsers(ctx, a8m); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -70,4 +79,35 @@ func CreateCars(ctx context.Context, client *ent.Client) (*ent.User, error) {
 	}
 	log.Println("user was created: ", a8m)
 	return a8m, nil
+}
+
+func QueryCars(ctx context.Context, a8m *ent.User) error {
+	cars, err := a8m.QueryCars().All(ctx)
+	if err != nil {
+		return fmt.Errorf("failed querying user cars: %w", err)
+	}
+	log.Println("returned cars:", cars)
+
+	ford, err := a8m.QueryCars().Where(car.Model("Ford")).Only(ctx)
+	if err != nil {
+		return fmt.Errorf("failed querying user cars: %w", err)
+	}
+	log.Println(ford)
+	return nil
+}
+
+func QueryCarUsers(ctx context.Context, a8m *ent.User) error {
+	cars, err := a8m.QueryCars().All(ctx)
+	if err != nil {
+		return fmt.Errorf("failed querying user cars: %w", err)
+	}
+	// Query the inverse edge.
+	for _, c := range cars {
+		owner, err := c.QueryOwner().Only(ctx)
+		if err != nil {
+			return fmt.Errorf("failed querying car %q owner: %w", c.Model, err)
+		}
+		log.Printf("car %q owner: %q\n", c.Model, owner.Name)
+	}
+	return nil
 }
